@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html ng-app='memberApp'>
+
+<head>
+    <title>BES</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.6.1/angular.min.js"></script>
+    <script src='./appController.js'></script>
+</head>
+
+<body ng-controller='memberController as mCtrl'>
+
+    <h1>Team</h1>
+    <h2>{{mCtrl.team.title}}</h2>
+    {{mCtrl.team.address}}
+    <br> {{mCtrl.team.city}}, {{mCtrl.team.state}} {{mCtrl.team.zip}} {{mCtrl.team.country}}
+    <br> Latt: {{mCtrl.team.lat}} Long:{{mCtrl.team.lng}}
+    <h4>{{mCtrl.team.count_members}} members ({{mCtrl.team.count_operational}} operational/{{mCtrl.team.count_members - mCtrl.team.count_operational}}
+        non-operational)
+    </h4>    
+    <h4>Voting Members: {{mCtrl.count_voting}} Quorum: {{mCtrl.quorum}} </h4>
+
+    <h2>Simulate Page</h2>
+    <form>
+        <textarea style='height:40px;width:400px' type="text" ng-model='mCtrl.textMsg'></textarea>
+        <br>
+        <button ng-click='mCtrl.page(false)'>Send Page</button>
+        <button ng-click='mCtrl.page(true)'>Send Page to D4H</button>
+    </form>
+    <span>
+        <label>Directions</label>
+        <button onclick='location.href="http://localhost:8080/directions"'>Route</button>
+        <button onclick='location.href="http://localhost:8080/directions?route=direct"'>Direct</button>
+        <button onclick='location.href="http://localhost:8080/location"'>Map</button>
+    </span>
+
+    <h2>Membership</h2>
+    <button ng-click='mCtrl.update()'>Update from D4H</button>
+    <h4> Filter</h4>
+    <input type='text' placeholder='Name' ng-model='mCtrl.filter.name'>
+    <!--TODO: why doesn't this filter work?-->
+    <input type='text' placeholder='Classification' ng-model='mCtrl.filter.classification'>
+    <input type='text' placeholder='Position' ng-model='mCtrl.filter.position'>
+    <input type='text' placeholder='Status (Non)Operational' ng-model='mCtrl.filter.status.name'>
+
+        <select ng-model="mCtrl.voting">
+            <option value="all">All</option>
+            <option value="voting">Voting Only</option>
+        </select>
+
+
+    <form ng-show='mCtrl.selected'>
+        <h4>Member Detail</h4>
+        {{mCtrl.member.rank}} {{mCtrl.member.name}} ({{mCtrl.member.id}})
+        <br> {{mCtrl.member.status.name}} {{mCtrl.member.classification}} 
+        <br>
+        {{mCtrl.member.position}}
+        <br>
+        <!--edit in place-->
+        <!--TODO: initialize all mCtrl.PROP=false on submit-->
+        <label ng-init='mCtrl.gender=true' ng-click='mCtrl.gender=!mCtrl.gender'>Gender:</label>
+        <label ng-show='mCtrl.gender'>{{mCtrl.member.gender}}</label>
+        <input ng-hide='mCtrl.gender' type="text" ng-model='mCtrl.member.gender'>
+        <label ng-init='mCtrl.DOB=true' ng-click='mCtrl.DOB=!mCtrl.DOB'>DOB:</label>
+        <label ng-show='mCtrl.DOB'>{{mCtrl.member.birthdate}}</label>
+        <input ng-hide='mCtrl.DOB' type="text" ng-model='mCtrl.member.birthdate'>
+        <br>
+        <label ng-init='mCtrl.hair=true' ng-click='mCtrl.hair=!mCtrl.hair'>Hair:</label>
+        <label ng-show='mCtrl.hair'>{{mCtrl.member.hair_color}}</label>
+        <input ng-hide='mCtrl.hair' type="text" ng-model='mCtrl.member.hair_color'>
+        <label ng-init='mCtrl.eyes=true' ng-click='mCtrl.eyes=!mCtrl.eyes'>Eyes:</label>
+        <label ng-show='mCtrl.eyes'>{{mCtrl.member.eye_color}}</label>
+        <input ng-hide='mCtrl.eyes' type="text" ng-model='mCtrl.member.eye_color'>
+        <br>
+        <button ng-click='mCtrl.putMember()'>Update to DB</button>
+        <br>
+    </form>
+    <ol>
+        <li ng-repeat='member in mCtrl.memberArray | orderBy:member.name | filter:mCtrl.filter | filter:mCtrl.votingFilter'>
+            <button ng-click="mCtrl.getMember(member)">Select
+            </button> {{member.name}} ({{member.ref}})
+        </li>
+    </ol>
+</body>
+
+</html>
