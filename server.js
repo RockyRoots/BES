@@ -1,5 +1,6 @@
 var config = require('./config.js');
 
+// mongoose database initialization
 var mongoose = require('mongoose')
 mongoose.connect('mongodb://localhost/' + config.DB, function (err) {
     if (err) {
@@ -9,13 +10,27 @@ mongoose.connect('mongodb://localhost/' + config.DB, function (err) {
     }
 })
 
+// start up express
 var express = require('express');
 var app = express();
+
+// add post body parsing
 var bodyParser = require('body-parser');
-app.use(bodyParser.json(), bodyParser.urlencoded({ extended: true }));
+app.post('*', bodyParser.json(), bodyParser.urlencoded({ extended: true }));
 
-require('morgan')('dev')
+// add request logging
+var logger = require('morgan');
+app.use(logger('dev'));
 
+// our public static route for all our miscellaneous files
+app.use(express.static('./public'));
+
+// GET: / (root route)
+app.get('/', function (req, res) {
+    res.sendFile('index.html', { root: './public' });
+});
+
+// route handlers
 var teamRoutes = require('./routes/teamRoutes.js');
 teamRoutes(app);
 var pageRoutes = require('./routes/pageRoutes.js');

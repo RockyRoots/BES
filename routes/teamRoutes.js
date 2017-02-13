@@ -1,7 +1,5 @@
 var request = require('request');
 var express = require('express');
-var bodyParser = require('body-parser');
-var logger = require('morgan');
 var Member = require('../models/memberModel.js');
 var Team = require('../models/teamModel.js');
 
@@ -12,18 +10,6 @@ module.exports = function (app) {
     const d4hApiRoot = "https://api.d4h.org:443/v2/team/";
     const D4H_TOKEN = process.env.D4H_TOKEN || config.D4H_TOKEN;
 
-    app.use(logger('dev'));
-
-    // our public static route for all our miscellaneous files
-    app.use(express.static('./public'));
-
-    // add our body-parser middleware to parse the member API body response
-    app.use(bodyParser.json(), bodyParser.urlencoded({ extended: true }));
-
-    // GET: / (root route)
-    app.get('/', function (req, res) {
-        res.sendFile('index.html', { root: './public' });
-    });
 
     function convertD4H(member) {
         // convert custom fields to actual properties
@@ -33,6 +19,11 @@ module.exports = function (app) {
                 if (key.indexOf('(') >= 0) { key = key.substring(0, key.indexOf('(')) }
                 member[key] = member.custom_fields[i].value_string;
             }
+        }
+        // parse radio number off of reference number
+        member.radioNum = '';
+        if (member.ref.indexOf('(31') >= 0) {
+            member.radioNum = member.ref.replace(/^.*\(([0-9][0-9][0-9][0-9])\).*$/, '$1')
         }
         return member;
     }
@@ -57,14 +48,14 @@ module.exports = function (app) {
         request(d4hApiRoot + 'members?limit=' + limit + '&offset=' + offset + '&access_token=' + D4H_TOKEN,
             function (err, response, body) {
                 var myBody = JSON.parse(body); // parse the API response string into an object
-                console.log("GET /members status:", myBody.statusCode, 'with', myBody.data.length, 'members')
+                // console.log("GET /members status:", myBody.statusCode, 'with', myBody.data.length, 'members')
                 if (myBody.statusCode != 200) {
-                    console.log("returning", members.length, 'members (status', myBody.statusCode, ')')
+                    console.log("updating", members.length, 'members')
                     res.json(members);
                     return;
                 }
                 members = members.concat(myBody.data);
-                console.log("adding", myBody.data.length, 'members (', members.length, ') total');
+                console.log("collecting", myBody.data.length, 'members (', members.length, ') total');
 
                 getMoreMemberData(offset + limit, members, res);
                 // in the background, update the database with detailed data for each member
@@ -84,13 +75,13 @@ module.exports = function (app) {
 
     // GET: /d4hData (update database with D4H data)
     app.get('/d4hData', function (req, res) {
-        console.log("GET: /d4hData");
+        // console.log("GET: /d4hData");
 
         if (D4H_TOKEN == null) {
             res.status(300).send('D4H token not defined in environment');
             return;
         }
-        
+
         request(d4hApiRoot + 'team_details' + '?access_token=' + D4H_TOKEN,
             function (err, response, body) {
                 if (err) {
@@ -115,9 +106,9 @@ module.exports = function (app) {
 
     // GET: /team (get team details)
     app.get('/team', function (req, res) {
-        console.log("GET: /team");
+        // console.log("GET: /team");
         // get team data from database
-         Team.findOne({}).exec(
+        Team.findOne({}).exec(
             function (err, team) {
                 if (err) {
                     console.log("Team Find failed", err.message);
@@ -135,9 +126,9 @@ module.exports = function (app) {
 
     // GET: /members (get a list of all members)
     app.get('/members', function (req, res) {
-        console.log("GET: /members");
+        // console.log("GET: /members");
 
-         Member.find({}).sort({name:1}).exec( 
+        Member.find({}).sort({ name: 1 }).exec(
             function (err, doc) {
                 if (err) {
                     console.log("Members Find failed", err.message);
@@ -152,7 +143,7 @@ module.exports = function (app) {
 
     // GET: /members/##### (get a single member by D4H id)
     app.get('/members/:memberId', function (req, res) {
-        console.log("GET: /member/:memberId", req.params.memberId)
+        // console.log("GET: /member/:memberId", req.params.memberId)
         Member.findOne({ id: req.params.memberId }).exec(
             function (err, doc) {
                 if (err) {

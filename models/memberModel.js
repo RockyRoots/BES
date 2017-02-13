@@ -3,6 +3,7 @@ var mongoose = require('mongoose');
 var memberSchema = mongoose.Schema({
     id: { type: Number, unique: true, required: true },
     ref: String,
+    radioNum: Number,
     name: { type: String, unique: true, required: true },
     team_id: Number,
     position: String,

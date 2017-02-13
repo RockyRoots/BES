@@ -13,11 +13,17 @@
     <h2>{{mCtrl.team.title}}</h2>
     {{mCtrl.team.address}}
     <br> {{mCtrl.team.city}}, {{mCtrl.team.state}} {{mCtrl.team.zip}} {{mCtrl.team.country}}
-    <br> Latt: {{mCtrl.team.lat}} Long:{{mCtrl.team.lng}}
-    <h4>{{mCtrl.team.count_members}} members ({{mCtrl.team.count_operational}} operational/{{mCtrl.team.count_members - mCtrl.team.count_operational}}
-        non-operational)
-    </h4>    
+    <br> Latt: {{mCtrl.team.lat}} Long:{{mCtrl.team.lng}}  
     <h4>Voting Members: {{mCtrl.count_voting}} Quorum: {{mCtrl.quorum}} </h4>
+    {{mCtrl.team.count_members}} members ({{mCtrl.team.count_operational}} operational/{{mCtrl.team.count_members - mCtrl.team.count_operational}}
+        non-operational)
+        <br>  
+    Rescuers: {{mCtrl.count_rescuer}}
+    Reserves: {{mCtrl.count_reserve}}
+    Candidate: {{mCtrl.count_candidate}}
+    Adjunct: {{mCtrl.count_adjunct}}
+    Associate: {{mCtrl.count_associate}}
+    Public: {{mCtrl.count_non_member}}
 
     <h2>Simulate Page</h2>
     <form>
@@ -37,26 +43,36 @@
     <button ng-click='mCtrl.update()'>Update from D4H</button>
     <h4> Filter</h4>
     <input type='text' placeholder='Name' ng-model='mCtrl.filter.name'>
-    <!--TODO: why doesn't this filter work?-->
-    <input type='text' placeholder='Classification' ng-model='mCtrl.filter.classification'>
     <input type='text' placeholder='Position' ng-model='mCtrl.filter.position'>
-    <input type='text' placeholder='Status (Non)Operational' ng-model='mCtrl.filter.status.name'>
-
-        <select ng-model="mCtrl.voting">
-            <option value="all">All</option>
-            <option value="voting">Voting Only</option>
-        </select>
-
+    <select ng-model="mCtrl.class">
+        <option value="all">All</option>
+        <option value="rescuer">Rescuer</option>
+        <option value="reserve">Reserve</option>
+        <option value="candidate">Candidate</option>
+        <option value="adjunct">Adjunct</option>
+        <option value="associate">Associate</option>
+        <option value="non-member">Public</option>
+    </select> 
+    <select ng-model="mCtrl.operational">
+        <option value="all">All</option>
+        <option value="operational">Operational</option>
+        <option value="non-operational">Non-Operational</option>
+    </select>    
+    <select ng-model="mCtrl.voting">
+        <option value="all">All</option>
+        <option value="voting">Voting Only</option>
+    </select>
 
     <form ng-show='mCtrl.selected'>
         <h4>Member Detail</h4>
-        {{mCtrl.member.rank}} {{mCtrl.member.name}} ({{mCtrl.member.id}})
-        <br> {{mCtrl.member.status.name}} {{mCtrl.member.classification}} 
-        <br>
-        {{mCtrl.member.position}}
+        {{mCtrl.member.rank}} {{mCtrl.member.name}}
+        <br>{{mCtrl.member.status.name}} {{mCtrl.member.classification}} 
+        <br>{{mCtrl.member.position}} 
+        <br>Radio #{{mCtrl.member.radioNum}}
         <br>
         <!--edit in place-->
         <!--TODO: initialize all mCtrl.PROP=false on submit-->
+        <!--Not worth doing until we can update d4h member data via their API-->
         <label ng-init='mCtrl.gender=true' ng-click='mCtrl.gender=!mCtrl.gender'>Gender:</label>
         <label ng-show='mCtrl.gender'>{{mCtrl.member.gender}}</label>
         <input ng-hide='mCtrl.gender' type="text" ng-model='mCtrl.member.gender'>
@@ -75,9 +91,11 @@
         <br>
     </form>
     <ol>
-        <li ng-repeat='member in mCtrl.memberArray | orderBy:member.name | filter:mCtrl.filter | filter:mCtrl.votingFilter'>
-            <button ng-click="mCtrl.getMember(member)">Select
-            </button> {{member.name}} ({{member.ref}})
+        <li ng-repeat='member in mCtrl.memberArray | orderBy:member.name 
+            | filter:mCtrl.filter | filter:mCtrl.votingFilter 
+            | filter:mCtrl.operationalFilter | filter:mCtrl.classFilter'>
+            <button ng-click="mCtrl.getMember(member)">Select</button> 
+            {{member.name}} ({{member.ref}})
         </li>
     </ol>
 </body>

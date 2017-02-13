@@ -31,20 +31,21 @@ module.exports = function (app) {
 
     // POST: /page?d4h=true (given a text message, create a page entry in the database and optionally create an entry in d4h)
     app.post('/page', function (req, res) {
-        var textMsg = req.body.page;
+        var to = req.body.to;
+        var from = req.body.from; // bretsa@bretsaps.org
+        var textMsg = req.body.body;
 
         // parse a BRETSA text message and create a call information object
         textMsg = textMsg.trim();
         var upMsg = textMsg.toUpperCase();
 
-        myDate = new Date();
+        // parse out date/time of page
+        var cadNo = textMsg.substring(0, upMsg.indexOf(' ')).trim();
+        var cadDateStr = cadNo.replace('BCFD', '')
         var timeArr = textMsg.substring(upMsg.indexOf('TIME:') + 5, upMsg.indexOf('UNITS:')).trim().split(':')
-        // var TZOffset = team.timezone.offset
-        myDate.setHours(timeArr[0] - config.TZOffset, timeArr[1], 0, 0);
+        var cadDate = new Date('20' + cadDateStr.substring(0, 2), cadDateStr.substring(2, 4)-1, cadDateStr.substring(4, 6),
+            timeArr[0], timeArr[1], 0, 0);
 
-        // Google Geo Code - given an address, return a location object with lat/long
-        // https://developers.google.com/maps/documentation/geocoding/start?csw=1
-        var address = textMsg.substring(upMsg.indexOf('ADD:') + 4, upMsg.indexOf('BLD:')).trim();
         // TODO: get location defaults and timezone from GET:/team
         var city = config.city;
         var county = config.county;
@@ -53,7 +54,9 @@ module.exports = function (app) {
         var lat = config.lat;
         var lng = config.lng;
 
-        // TODO: API key is not working...
+        // Google Geo Code - given an address, return a location object with lat/long
+        // https://developers.google.com/maps/documentation/geocoding/start?csw=1
+        var address = textMsg.substring(upMsg.indexOf('ADD:') + 4, upMsg.indexOf('BLD:')).trim();
         var GOOGLE_MAPS_KEY = process.env.GOOGLE_MAPS_KEY || config.GOOGLE_MAPS_KEY
         var geoCodeRoot = 'https://maps.googleapis.com/maps/api/geocode/json'
         var geoCodeLocation = '?address=' + address + ', ' + county + ' County, ' + state
@@ -61,12 +64,11 @@ module.exports = function (app) {
         var geoCodeURL = (geoCodeRoot + geoCodeLocation + geoCodeAuth).replace(/ /g, '+')
         // console.log("GEO:", geoCodeURL)
 
-        // TODO: asynchronous - need to work it out
         request(geoCodeURL, function (geoErr, geoResult, geoBody) {
             var myBody = JSON.parse(geoBody);
-            if (myBody.status != 'OK') {
+            if (myBody.status != 'OK' || geoErr) {
                 // use defaults
-                console.log("Google GeoCode failed:", myBody.status, myBody.error_message)
+                console.log("Google GeoCode failed:", myBody.status, myBody.error_message, geoErr)
             } else {
                 city = myBody.results[0].address_components[2].short_name
                 county = myBody.results[0].address_components[3].short_name.replace(' County', '')
@@ -75,16 +77,20 @@ module.exports = function (app) {
                 lat = myBody.results[0].geometry.location.lat
                 lng = myBody.results[0].geometry.location.lng
                 if (myBody.results.length > 1) {
-                    // TODO: loop through results finding the best fit if there is more than on match instead of using the first one
-                    console.log("WARNING: Google GeoCode found", myBody.results.length, "addresses:", myBody.results)
+                    // TODO: how to determine the best address if multiple are found?
+                    console.log("WARNING: Google GeoCode found", myBody.results.length,"matching addresses");
+                    for (var i = 0; i < myBody.results.length; i++) {
+                        console.log("        ", myBody.results[i].formatted_address);
+                    }
                 }
             }
 
+            // parse off the description from the cad code
             var [cadCode, descr] = textMsg.substring(upMsg.indexOf(' '), upMsg.indexOf('ADD:')).trim().split('-');
 
             var pageInfo = {
                 page: textMsg,
-                cadNo: textMsg.substring(0, upMsg.indexOf(' ')).trim(),
+                cadNo: cadNo,
                 cadCode: cadCode,
                 description: descr,
                 address: address,
@@ -98,7 +104,7 @@ module.exports = function (app) {
                 apt: textMsg.substring(upMsg.indexOf('APT:') + 4, upMsg.indexOf('LOC:')).trim(),
                 location: textMsg.substring(upMsg.indexOf('LOC:') + 4, upMsg.indexOf('INFO:')).trim(),
                 info: textMsg.substring(upMsg.indexOf('INFO:') + 5, upMsg.indexOf('TIME:')).trim(),
-                time: myDate,
+                time: cadDate,
                 units: textMsg.substring(upMsg.indexOf('UNITS:') + 6).split(',')
             }
 
@@ -115,6 +121,7 @@ module.exports = function (app) {
                 }
             );
 
+            // if D4H entry was requested...
             if (req.query.d4h) {
                 var incident = {
                     ref: pageInfo.cadNo,
@@ -133,8 +140,7 @@ module.exports = function (app) {
                 }
                 const d4hApiRoot = "https://api.d4h.org:443/v2/team/";
                 const D4H_TOKEN = process.env.D4H_TOKEN || config.D4H_TOKEN;
-                console.log("DBG:", incident)
-                request.post({url:d4hApiRoot + 'incidents' + '?access_token=' + D4H_TOKEN, form:incident},
+                request.post({ url: d4hApiRoot + 'incidents' + '?access_token=' + D4H_TOKEN, form: incident },
                     function (err, res, body) {
                         if (err) {
                             console.log("D4H Entry FAILED for", incident.title, err)
@@ -144,7 +150,7 @@ module.exports = function (app) {
                     }
                 )
             }
-            console.log("PAGE:", pageInfo.description, 'at', pageInfo.address + ', ' + pageInfo.city + ', ' + pageInfo.state)
+            console.log("PAGE:", pageInfo.description, 'at', pageInfo.address + ', ' + pageInfo.city + ', ' + pageInfo.state, 'at', pageInfo.time)
         })
     });
 

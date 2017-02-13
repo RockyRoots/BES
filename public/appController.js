@@ -10,14 +10,21 @@ function memberFunction($http) {
     // we start with no member selected, so we hide the job application form
     mCtrl.selected = false;
     // TODO: for test purposes only
-    mCtrl.textMsg = "BCFD170210-001494 FIWILR-Wildland/Grass Fire ADD: 5255 Rogers Rd BLD: APT: LOC: INFO: ARIAL PHOTOGRAPHY REQUEST Time:05:47UNITS:HY3,2866,LY1,2831,2840,4061"
+    mCtrl.textMsg = "BCFD170101-000000 FIWILR-Test Call ADD: 123 Main St BLD: APT: LOC: INFO: THIS IS A TEST Time:23:01UNITS:HY3,2866,LY1,2831,2840,4061"
 
     mCtrl.page = function (d4h) {
+        console.log("POST: /page")
         var param = '';
-        if (d4h) { param="?d4h=true";}
-        $http.post('/page'+param, { page: mCtrl.textMsg }).then(
+        // simulate a twilio request
+        var page = {
+            to: '13035877660',
+            from: '19706993100',
+            body: mCtrl.textMsg
+        }
+        if (d4h) { param = "?d4h=true"; }
+        $http.post('/page' + param, page).then(
             function success(response) {
-                console.log("POST:/page succeeded")
+                // console.log("POST:/page succeeded")
             },
             function failure(response) {
                 console.log("POST:/page error:", response)
@@ -25,12 +32,13 @@ function memberFunction($http) {
         )
     }
 
+    // update database with data from d4h
     mCtrl.update = function () {
         console.log("GET: /d4hData")
         $http.get('/D4Hdata').then(
             function success(response) {
-                getTeam();
-                getMembers();
+                mCtrl.getTeam();
+                mCtrl.getMembers();
             },
             function failure(response) {
                 console.log("GET:/D4Hdata error:", response)
@@ -38,8 +46,8 @@ function memberFunction($http) {
         )
     }
 
-    // initialize team
-    function getTeam() {
+    // load team from database
+    mCtrl.getTeam = function () {
         console.log("GET: /team")
         $http.get('/team').then(
             function success(response) {
@@ -50,37 +58,75 @@ function memberFunction($http) {
             }
         )
     }
-    getTeam();
 
-    // initialize list members
-    function getMembers() {
+    // load members from database
+    mCtrl.getMembers = function () {
         console.log("GET: /members")
         $http.get('/members').then(
             function success(response) {
                 mCtrl.memberArray = response.data;
                 // HACK: why doesn't this reduce function work?
-                var x = 0;
-                var s = mCtrl.memberArray.reduce(function(sum,member){ 
-                    if (member.classification == 'Rescuer' 
-                        || member.classification == 'Reserve') {
-                            // console.log('INC', sum)
-                            x++;
-                            return sum+1;
+                var rescuer = 0;
+                var reserve = 0;
+                var associate = 0;
+                var adjunct = 0;
+                var candidate = 0;
+                var non_member = 0;
+                for (var i = 0; i < mCtrl.memberArray.length; i++) {
+                    var classy = mCtrl.memberArray[i].classification;
+                    var oppy = mCtrl.memberArray[i].status.name;
+                    var op = oppy == 'Operational' ? true : false;
+                    if (classy == 'Rescuer') { 
+                        rescuer++;                    
+                        if(!op) {
+                            console.log(mCtrl.memberArray[i].name,'is',oppy,classy)
                         }
-                },0);
-                // console.log("DBG:", s,x)
-                mCtrl.count_voting = x;
-                mCtrl.quorum = Math.ceil(mCtrl.count_voting/2);
+                    }
+                    else if (classy == 'Reserve') { 
+                        reserve++;                        
+                        if(!op) {
+                            console.log(mCtrl.memberArray[i].name,'is',oppy,classy)
+                        }
+                    } else if (classy == 'Adjunct') { 
+                        adjunct++;                        
+                        if(!op) {
+                            console.log(mCtrl.memberArray[i].name,'is',oppy,classy)
+                        }
+                    } else if (classy == 'Candidate') { 
+                        candidate++;                        
+                        if(!op) {
+                            console.log(mCtrl.memberArray[i].name,'is',oppy,classy)
+                        }
+                    } else if (classy == 'Associate') { 
+                        associate++; 
+                        if(op) {
+                            console.log(mCtrl.memberArray[i].name,'is',oppy,classy)
+                        }
+                     } else if (classy == 'Non-Member') { 
+                        non_member++; 
+                        if(op) {
+                            console.log(mCtrl.memberArray[i].name,'is',oppy,classy)
+                        }
+                    } else  { 
+                        console.log("ERROR:",mCtrl.memberArray[i].name, oppy, classy);
+                    }
+                };
+                mCtrl.count_reserve = reserve
+                mCtrl.count_rescuer = rescuer
+                mCtrl.count_associate = associate
+                mCtrl.count_candidate = candidate
+                mCtrl.count_adjunct = adjunct
+                mCtrl.count_non_member = non_member
+                mCtrl.count_voting = mCtrl.count_reserve + mCtrl.count_rescuer;
+                mCtrl.quorum = Math.ceil(mCtrl.count_voting / 2);
             },
             function failure(response) {
                 console.log("GET:/members error:", response);
             }
         )
     }
-    getMembers();
 
-    // select a single member and get more detailed info
-    // use that detailed info to start populating a job application
+    // get member info from database
     mCtrl.getMember = function (member) {
         console.log("GET: /member", member)
         $http.get('/members/' + member.id).then(
@@ -96,14 +142,13 @@ function memberFunction($http) {
                 console.log("GET: /member/:member error:", response)
             }
         )
-        // this will un-hide the job application form
+        // this will un-hide the detail form
         mCtrl.selected = true;
     }
 
-    // submit a job application and apply for the job!
-    // take the additional information from the form and save it all to the database
+    // take the additional information from the form and save it to the database
     mCtrl.putMember = function () {
-        console.log("PUT: /member", mCtrl.member.name);
+        console.log("PUT: /member", mCtrl.member.name)
         // put takes a second argument that is the data that we want to use to update the database
         $http.put('/member', mCtrl.member).then(
             function success(response) {
@@ -119,15 +164,56 @@ function memberFunction($http) {
             }
         )
     }
-    mCtrl.votingFilter = function(element, array, index) {
-		if (mCtrl.voting == 'all') {
-			return true
-		} else if (mCtrl.voting == 'voting') {
-            // adjunct, associate, candidate, non-member are non-voting
-			return element.classification == 'Rescuer' || element.classifiction == 'Reserve';
-		} else {
-			return true;
-		};
-	};
+
+    // add a filter function to identify voting members
+    mCtrl.votingFilter = function (element, array, index) {
+        if (mCtrl.voting == 'all') {
+            return true
+        } else if (mCtrl.voting == 'voting') {
+            // adjunct, associate, candidate, non-member are non-voting classifications
+            // rescuer and reserve are voting classifications
+            return element.classification == 'Rescuer' || element.classification == 'Reserve';
+        } else {
+            return true;
+        };
+    };
+
+    // add a filter function to identify members of a given classification
+    mCtrl.classFilter = function (element, array, index) {
+        if (mCtrl.classification == 'all') {
+            return true;
+        } else if (mCtrl.class == 'rescuer') {
+            return element.classification == 'Rescuer';
+        } else if (mCtrl.class == 'reserve') {
+            return element.classification == 'Reserve';
+        } else if (mCtrl.class == 'candidate') {
+            return element.classification == 'Candidate';
+        } else if (mCtrl.class == 'adjunct') {
+            return element.classification == 'Adjunct';
+        } else if (mCtrl.class == 'associate') {
+            return element.classification == 'Associate';
+        } else if (mCtrl.class == 'non-member') {
+            return element.classification == 'Non-Member';
+        } else {
+            return true;
+        };
+    };
+
+    // add a filter function to identify operational/non-operational members
+    mCtrl.operationalFilter = function (element, array, index) {
+        if (mCtrl.operational == 'all') {
+            return true;
+        } else if (mCtrl.operational == 'operational') {
+            return element.status.name == 'Operational';
+        } else if (mCtrl.operational == 'non-operational') {
+            return element.status.name == 'Non-Operational';
+        } else {
+            return true;
+        };
+    };
+
+    // initialize page info from database
+    mCtrl.getTeam();
+    mCtrl.getMembers();
 
 }
