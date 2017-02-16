@@ -2,6 +2,7 @@ var request = require('request');
 var express = require('express');
 var Member = require('../models/memberModel.js');
 var Team = require('../models/teamModel.js');
+var config = require('../config.js');
 
 // export all of the routes that we will use to the server
 module.exports = function (app) {
